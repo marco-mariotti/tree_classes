@@ -28,21 +28,21 @@ def shrink_font_to_box (simpleTextItem, width=-1, height=-1, category='unknown')
 
 class GapFace(faces.Face):
   """ Simple face that can be used as place holder, e.g. to indicate gaps in the syntheny view. A single horizontal dotted line is drawn at the center. Width and height can be used so that this can be aligned to other faces.""" 
-  def __init__(self, width=150, height=40, color='gray'):
+  def __init__(self, width=150, height=40, color='gray', pen_size=1):
     faces.Face.__init__(self)
     self.type = "item"
     self.item = None
     self.width=width
     self.height=height
     self.color=color
+    self.pen_size=pen_size
   def _width(self):        return self.item.rect().width()
   def _height(self):       return self.item.rect().height()
   def update_items(self):
       self.item = QtGui.QGraphicsRectItem(0, 0, self.width, self.height) # backbone object, no color 
       self.item.setPen(QtGui.QPen(QtCore.Qt.NoPen)) #no black border      
-      pen_size=1
       if not self.color is None:
-        outline_pen = QtGui.QPen(    QtGui.QColor(self.color),  pen_size, QtCore.Qt.DotLine)
+        outline_pen = QtGui.QPen(    QtGui.QColor(self.color),  self.pen_size, QtCore.Qt.DotLine)
         gap_line =  QtGui.QGraphicsLineItem( 0, self.height/2.0,  self.width,  self.height/2.0,            self.item)
         gap_line.setPen(outline_pen)
 
@@ -109,6 +109,7 @@ class GeneFace(faces.Face):
       'font':'Courier New', 'font_size':12, 'shrink_font_to_fit':True, 'font_margin':4,
       'colors':{'bkg':'#4444AA', 'outline':'#000000', 'text':'#000000' },
       'printed':{'id':1, 'chromosome':1, 'text':0, 'boundaries':0},
+      'pen_size':1,
       'rotable':False,
     }
 
@@ -209,6 +210,8 @@ Usage:     gvf= GeneViewFace(gene_object, introns=[], xmin=None, xmax=None, shri
     SIZE:
      for height, you must define either: *height (total height of face in pixels) or *height_exons and height_introns (to define manually the space attributed to the exon and the intron linker.
      Similarly for width you must define either *width (total width of face in pixels)  or *width_per_position, where position refers to the coordinates in the gene object
+    *pen_size defines the size of the pen used to draw all lines (default: 1)
+    *intron_pen_size defines the size of the pen used for introns only (default: 2)
 """
   default_attributes={
       'order_text':['id', 'chromosome', 'boundaries', 'text'],
@@ -218,6 +221,7 @@ Usage:     gvf= GeneViewFace(gene_object, introns=[], xmin=None, xmax=None, shri
       'colors':{'bkg':'#4444AA', 'outline':'#000000', 'text':'#000000', 'line':'#000000', 'intron':'#000000', #'exon1':'#888844', 'exon1.outline':'#AA0000'
       },
       'printed':{'id':1, 'chromosome':0, 'text':0, 'boundaries':0},
+      'pen_size':1,       'intron_pen_size':2,
       'rotable':False,
     }
 
@@ -300,14 +304,12 @@ Usage:     gvf= GeneViewFace(gene_object, introns=[], xmin=None, xmax=None, shri
       self.item = QtGui.QGraphicsRectItem(0, 0, self.width, self.height) # backbone object, no color 
       self.item.setPen(QtGui.QPen(QtCore.Qt.NoPen)) #no black border      
 
-      pen_size=1
-      intron_pen_size=2
       if self.colors['outline'] is None: outline_color= self.colors['bkg']
       else: outline_color= self.colors['outline']
-      outline_pen = QtGui.QPen(    QtGui.QColor(outline_color),  pen_size, QtCore.Qt.SolidLine)
+      outline_pen = QtGui.QPen(    QtGui.QColor(outline_color),  self.pen_size, QtCore.Qt.SolidLine)
       exon_brush  = QtGui.QBrush(  QtGui.QColor(self.colors['bkg']) )
-      line_pen    = QtGui.QPen(    QtGui.QColor( self.colors['line']  ),  pen_size, QtCore.Qt.SolidLine)
-      intron_pen =  QtGui.QPen(    QtGui.QColor(self.colors['intron']),   intron_pen_size, QtCore.Qt.SolidLine)
+      line_pen    = QtGui.QPen(    QtGui.QColor( self.colors['line']  ),  self.pen_size, QtCore.Qt.SolidLine)
+      intron_pen =  QtGui.QPen(    QtGui.QColor(self.colors['intron']),   self.intron_pen_size, QtCore.Qt.SolidLine)
 
       if self.processed_coords['exons']:
         ## draw line up to first exon box
@@ -324,7 +326,7 @@ Usage:     gvf= GeneViewFace(gene_object, introns=[], xmin=None, xmax=None, shri
           ### custom color specified for this exon?
           if  'exon'+str(exon_index+1) in self.colors:   colored_rect.setBrush(QtGui.QBrush(QtGui.QColor(self.colors['exon'+str(exon_index+1)])))
           else:           colored_rect.setBrush(exon_brush)          
-          if  'exon'+str(exon_index+1)+'.outline' in self.colors:   colored_rect.setPen(QtGui.Pen(QtGui.QColor(self.colors['exon'+str(exon_index+1)+'.outline']), pen_size, QtCore.Qt.SolidLine  ))
+          if  'exon'+str(exon_index+1)+'.outline' in self.colors:   colored_rect.setPen(QtGui.Pen(QtGui.QColor(self.colors['exon'+str(exon_index+1)+'.outline']), self.pen_size, QtCore.Qt.SolidLine  ))
           else:           colored_rect.setPen(outline_pen)
 
           ## drawing line just after this
@@ -408,22 +410,22 @@ Possible **key_attributes:
                       pointer_width
   """
   default_attributes={
-      'order_text':['id', 'chromosome', 'boundaries', 'text'],
+      'order_text':['id', 'chromosome', 'text', 'boundaries'],
       'height':40, 'width':150,  #'width_per_position':None, 
       'arrow_height':25,      'pointer_width':30,
       'font':'Courier New', 'font_size':8, 'shrink_font_to_fit':False, 'font_margin':4,
       'colors':{'bkg':'#4444AA', 'outline':None, 'text':'#000000', 'box_bkg':None, 'box_line':None },
       'printed':{'id':1, 'chromosome':0, 'text':0, 'boundaries':0},
+      'pen_size':1,
       'rotable':False,
     }
   
   def update_items(self):
       """ the actual function doing the graphics """
       if not self.gene.strand in ['+', '-', None]: raise Exception, "ArrowGeneFace ERROR this face must be initialized with a gene object with a .strand attribute which is + or -  (or None) ! This was received: {0}".format(self.gene.strand)
-      pen_size=1
       self.item = QtGui.QGraphicsRectItem(0, 0, self.width, self.height) # backbone object, no color 
       if not 'box_line' in self.colors or self.colors['box_line'] is None:   box_pen=QtGui.QPen(QtCore.Qt.NoPen)
-      else:                                                                  box_pen=QtGui.QPen(  QtGui.QColor(self.colors['box_line']), pen_size, QtCore.Qt.SolidLine )
+      else:                                                                  box_pen=QtGui.QPen(  QtGui.QColor(self.colors['box_line']), self.pen_size, QtCore.Qt.SolidLine )
       if not 'box_bkg' in self.colors or self.colors['box_bkg'] is None:     box_brush=QtGui.QBrush(  QtCore.Qt.NoBrush  )
       else:                                                                  box_brush=QtGui.QBrush(  QtGui.QColor(self.colors['box_bkg'])  )
       self.item.setPen(box_pen) #no black border      
@@ -431,9 +433,9 @@ Possible **key_attributes:
 
       if not 'outline' in self.colors or self.colors['outline'] is None: outline_color= self.colors['bkg']
       else:           outline_color= self.colors['outline']
-      outline_pen = QtGui.QPen(    QtGui.QColor(outline_color),  pen_size, QtCore.Qt.SolidLine)
+      outline_pen = QtGui.QPen(    QtGui.QColor(outline_color),  self.pen_size, QtCore.Qt.SolidLine)
       rect_brush  = QtGui.QBrush(  QtGui.QColor(self.colors['bkg']) )
-      #rect_pen =   QtGui.QPen(    QtGui.QColor(self.colors['bkg']),  pen_size, QtCore.Qt.SolidLine)
+      #rect_pen =   QtGui.QPen(    QtGui.QColor(self.colors['bkg']),  self.pen_size, QtCore.Qt.SolidLine)
 
       y1_arrow_trunk=  (self.height - self.arrow_height) / 2.0
       y2_arrow_trunk=  y1_arrow_trunk + self.arrow_height
@@ -561,6 +563,7 @@ class ExonViewFace(GeneFace):
       'colors':{'bkg':'#4444AA', 'outline':'#000000', 'text':'#000000', 'gap':'#999999', 'introns':'#000000', 'frameshifts':'#EE2222' },
       'printed':{'id':1, 'chromosome':1, 'text':0, 'boundaries':1},
       'annotations':{'introns':True, 'frameshifts':True},
+      'pen_size':1,
       'rotable':False,
     }
 
@@ -685,11 +688,10 @@ class ExonViewFace(GeneFace):
       self.item = QtGui.QGraphicsRectItem(0, 0, self.width, self.height) # backbone object, no color 
       self.item.setPen(QtGui.QPen(QtCore.Qt.NoPen)) #no black border      
 
-      pen_size=1
-      gap_pen     = QtGui.QPen(    QtGui.QColor(self.colors['gap']),      pen_size, QtCore.Qt.DotLine)
-      outline_pen = QtGui.QPen(    QtGui.QColor(self.colors['outline']),  pen_size, QtCore.Qt.SolidLine)
+      gap_pen     = QtGui.QPen(    QtGui.QColor(self.colors['gap']),      self.pen_size, QtCore.Qt.DotLine)
+      outline_pen = QtGui.QPen(    QtGui.QColor(self.colors['outline']),  self.pen_size, QtCore.Qt.SolidLine)
       rect_brush  = QtGui.QBrush(  QtGui.QColor(self.colors['bkg']) )
-      rect_pen    = QtGui.QPen(    QtGui.QColor(self.colors['bkg']),      pen_size, QtCore.Qt.SolidLine)           
+      rect_pen    = QtGui.QPen(    QtGui.QColor(self.colors['bkg']),      self.pen_size, QtCore.Qt.SolidLine)           
 
       for gap_index, gap_item in enumerate(self.filtered_gaps): #between a gap and the next one   ### artificial gaps are present here at pos 0 and pos length.
         gap_relative_pos, gap_length, total_gap_length= gap_item  ## relative pos is the pos of the gap in the target, nucleotide based; 0 means before the first nucleotide. 1 after the first nucleotide, etc             
