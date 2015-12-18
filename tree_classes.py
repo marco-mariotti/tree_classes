@@ -2,7 +2,7 @@
 import sys
 sys.path.insert(0, "/users/rg/mmariotti/libraries/")
 sys.path.append('/users/rg/mmariotti/scripts')
-from MMlib import nogap
+from MMlib import nogap, printerr
 from string import join
 try:  
   from PyQt4 import QtCore, QtGui
@@ -395,6 +395,7 @@ Possible **key_attributes:
   -height, width: these refer to the (invisible) external box surrounding the arrow, in pixels
   -arrow_height and pointer_width ; see figure below
   -colors: a hash defining the colors to draw this. Example: colors={'bkg':'lightblue', 'outline':'#000000', 'text': 'red'}.  See GeneFace __doc__ string for more details. If outline is None, the same color as for bkg is used. If box_bkg or box_line are not provided, none (transparent) is used
+  -reverse: if this is True, the arrow will point to the opposite direction as it would be otherwise
   -printed: decides what text is printed in the figure. Text is provided as attributes of the gene object. See GeneFace __doc__ string for more details. By default in this class, only the gene.id attribute is printed
   -others: rotable, font, font_size, shrink_font_to_fit, font_margin : see GeneFace
 
@@ -416,7 +417,7 @@ Possible **key_attributes:
       'font':'Courier New', 'font_size':8, 'shrink_font_to_fit':False, 'font_margin':4,
       'colors':{'bkg':'#4444AA', 'outline':None, 'text':'#000000', 'box_bkg':None, 'box_line':None },
       'printed':{'id':1, 'chromosome':0, 'text':0, 'boundaries':0},
-      'pen_size':1,
+      'pen_size':1, 'reverse':False, 
       'rotable':False,
     }
   
@@ -447,7 +448,7 @@ Possible **key_attributes:
       x2_arrow_head=  self.width
       x_arrow_trunk = 0
         
-      if self.gene.strand=='-':
+      if (self.gene.strand=='-' and not self.reverse)    or   (self.gene.strand=='+' and self.reverse) :
         y1_arrow_trunk, y2_arrow_trunk= y2_arrow_trunk, y1_arrow_trunk
         y1_arrow_head, y2_arrow_head  = y2_arrow_head, y1_arrow_head
         x_arrow_trunk = self.width
@@ -473,7 +474,7 @@ Possible **key_attributes:
       self.draw_text_fields()
       return  
  
-def syntheny_view ( list_of_genes, get_color= lambda x:x.color, face=ArrowGeneFace, margins={'margin_left':4, 'margin_right':4, 'margin_top':4, 'margin_bottom':4 }, **other_face_attributes):
+def syntheny_view ( list_of_genes, get_color= lambda x:x.color, face=ArrowGeneFace, margins={'margin_left':4, 'margin_right':4, 'margin_top':4, 'margin_bottom':4 }, reverse=False,  **other_face_attributes):
   """  Function that accepts a list of genes in input (MMlib.gene class) indicating a synthenic block  and returns a list of ArrowGeneFace faces to represent this.
 To represent things other than genes, you can include any of these special values as elements in the input list of genes:
    '-'      :  gaps in the syntheny  (-> GapFace)
@@ -481,12 +482,12 @@ To represent things other than genes, you can include any of these special value
    'start'  :  contig starts here    (-> ContigTerminusFace with mode='start')
    'start'  :  contig starts here    (-> ContigTerminusFace with mode='start')
 This method should be called for each node in which you want to have this view. The representation of genes in different node can be conceptually linked through colors.
-The function get_color is a generalized way to derive the color of each gene. This function should return a color name.
-Margins is a hash defining the margin attributes set in the faces created.
+The function get_color is a generalized way to derive the color of each gene. This function should return a color name. The easiest way to define colors is to add attributes to each gene object. The attribute .color will define the background of the arrow. Then, four special attributes in the gene objects are recognized: .color_outline, .color_text, .color_box_bkg, .color_box_line
+The argument margins is a hash defining the margin attributes set in the faces created.
+If reverse==True, then the representation is flipped. This is typically to represent the context of a gene which is on the negative strand in the assembly.
   other_face_attributes:  other keywords can be specified setting any attribute of the face (e.g. see ArrowGeneFace.default_attributes). All attributes specified like this are set for all genes in list_of_genes.
   NOTE: it is also possible to specify attributes in the input gene objects, allowing to customize them one by one. The attribute "face_attributes" must be defined in the gene object; this is a hash in the same format as you would put other_face_attributes. 
    E.g. g=gene(strand='+', chromosome='chr1', face_attributes ={'font':'Arial', 'font_size':5}  )    --> then provide g in list_of_genes
-Additionally, four special attributes in the gene objects are recognized: color_outline, color_text, color_box_bkg, color_box_line ; if these are defined, the default values are overriden.
        
 Usage example: 
 for col_index, the_face in enumerate( syntheny_view( [ gene(strand='+', id='gene1',   color='blue', color_box_bkg='yellow'), gene(strand='-', id='gene2', color='green',     color_outline='black'  )])):   node.add_face( the_face, col_index+1, 'aligned')
@@ -533,9 +534,10 @@ for col_index, the_face in enumerate( syntheny_view( [ gene(strand='+', id='gene
       for k in ['width', 'height', 'colors']: 
         if k in other_face_attributes_for_this: del other_face_attributes_for_this[k]
 
-      agf=face(g, colors=colors, width=width, height=height, **other_face_attributes_for_this)
+      agf=face(g, colors=colors, width=width, height=height, reverse=reverse, **other_face_attributes_for_this)
     for k_margin in margins:      setattr(agf, k_margin, margins[k_margin])
-    face_list.append(agf)
+    if reverse:   face_list.insert(0, agf)
+    else:         face_list.append(agf)
   return face_list
 
 
@@ -585,7 +587,7 @@ class ExonViewFace(GeneFace):
             tot_gaps+=gap_length            
           index+=1
       elif type(gaps)==list: self.gaps=gaps ## this was provided directly in the form it is stored (See above)
-      else:         raise Exception, "ERROR initializing ExonViewFace (id="+self.gene.id+") the gaps argument was not recognized! wrong length maybe? \ngaps="+str(gaps)+'\nlen(gaps)='+str(len(gaps))+' gene.length()='+str(self.gene.length())
+      else:         raise Exception, "ERROR initializing ExonViewFace (id={0}) the gaps argument was not recognized! wrong length maybe? \ngaps={1}\nlen(gaps)={2} len(gaps without '-')={3}  gene.length()={4}".format(self.gene.id, gaps, len(gaps), len(nogap(gaps)), self.gene.length() )
       # add gaps of length 0 at beginning and end, if not present; this allows to have a nice data structure for later parsing
       if not self.gaps or self.gaps[0][0] != 0:   self.gaps.insert(0, [0, 0])  
       if self.gaps[-1][0] != self.gene.length():  self.gaps.append([self.gene.length(), 0])        
@@ -656,6 +658,7 @@ class ExonViewFace(GeneFace):
           raise Exception, "ExonViewFace ERROR annotation name: "+annotation_name+" y1 values not valid! they must be between 0.0 and 1.0! "+str(ann_dict['y1'])
         
         ### here creating self.annotations[annotation_name] !!!!
+        #print len(gaps), len(nogap(gaps)), ann_dict['start'], ann_dict['end']
         if ann_dict['map']=='ALI':            self.annotations[annotation_name]={'start':ann_dict['start'], 'end':ann_dict['end'],  'y0':ann_dict['y0'], 'y1':ann_dict['y1']  }
         elif ann_dict['map']=='SEQ':          self.annotations[annotation_name]={'start': map(self.position_in_ali, ann_dict['start']), 'end':map(self.position_in_ali, ann_dict['end']), 'y0':ann_dict['y0'], 'y1':ann_dict['y1'] }
         else: raise Exception, "ExonViewFace ERROR map argument not recognized: '"+ann_dict['map']+"'"
@@ -664,8 +667,11 @@ class ExonViewFace(GeneFace):
         for index, start in enumerate(self.annotations[annotation_name]['start']):
           end=self.annotations[annotation_name]['end'][index]          
           if max( (start, end) ) > ali_tot_length:
-            raise Exception, "ExonViewFace ERROR annotation_name: "+annotation_name+" annotation_index: "+str(index)+ " Feature out of boundaries! Total positions: "+str(ali_tot_length)+'  Start, end for this annotation were: '+str((start, end))
-        
+            #raise Exception, 
+            printerr("WARNING ExonViewFace ERROR annotation_name: "+annotation_name+" annotation_index: "+str(index)+ " Feature out of boundaries! Total positions: "+str(ali_tot_length)+'  Start, end for this annotation were: '+str((start, end))    , 1)
+
+            if start > ali_tot_length: start =ali_tot_length
+            if end > ali_tot_length:   end   =ali_tot_length
       #print   "# !! ", self.gene.id, "self.annotations", self.annotations
           
     def position_in_ali(self, pos_in_seq):
@@ -673,7 +679,7 @@ class ExonViewFace(GeneFace):
       if type(pos_in_seq)!=int: raise Exception, "ERROR id "+self.gene.id+' position_in_ali called with something else than a integer: '+str(pos_in_seq)+' ('+str(type(pos_in_seq))+')'
       gaps_behind=0; gap_index=0; 
       #print [pos_in_seq], self.gaps
-      while  self.gaps and  self.gaps[gap_index][0]  < pos_in_seq:
+      while  self.gaps and  gap_index<len(self.gaps) and self.gaps[gap_index][0]  < pos_in_seq:
           #print "ok: ", pos_in_seq, gap_index, self.gaps[gap_index], self.gaps[gap_index][0], " < ", pos_in_seq, self.gaps[gap_index][0]  < pos_in_seq
         gaps_behind+=self.gaps[gap_index][1]
         gap_index+=1
