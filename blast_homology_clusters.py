@@ -6,7 +6,8 @@ from commands import *
 sys.path.append('/home/mmariotti/scripts')
 #sys.path.append('/home/mmariotti/software/selenoprofiles')
 from MMlib import *
-from annotate_with_tblastn import parse_blast_tab
+#from annotate_with_tblastn import parse_blast_tab
+from selenoprofiles_3 import parse_blast, parse_blast_tab
 
 help_msg=""" Parse tabular output (m8) of blast and builds homology families. If two proteins have a blast hit satisfying the filter, they are joined in a family. Two proteins can be in the same family without having a blast hit linking them if there's a protein with blast hits to both (single link clustering). 
 Normal output is human readable (although may be very long). For usage with other programs (e.g. syntheny_view.py) see option -A
@@ -63,8 +64,9 @@ def main(args={}):
 
   cluster_index2geneids={}; cluster_index=1
   geneid2cluster_index={}
+  parser_handler=parse_blast_tab(input_file)    if not opt['b'] else   parse_blast(input_file)
 
-  for bhit in parse_blast_tab(input_file):
+  for bhit in parser_handler:
     if not  bhit.evalue < evalue_threshold: continue
 
     id_left, id_right=     bhit.chromosome, bhit.query.chromosome

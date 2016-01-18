@@ -18,7 +18,7 @@ Usage:  $ syntheny_view.py  -i genes.gff -a annotation.gff -f homology.tsv  [opt
 ##### Input options (all required):
 -i      gff annotation file of genes of interest 
 -a      global gff annotation file. Genes overlapping with those of interest will be removed
--f      homology tab separated file (i.e. lines like "geneId -tab- familyId")
+-f      homology tab separated file (i.e. lines like "geneId -tab- familyId"); to obtain one, run a all-against-all blastp and then run blast_homology_clusters.py 
 
 ## processing input options
 -if     function to apply to each line of the -i file to determine the gene id. Default: first word of last field -- i.e. -if "x.split('\t').split()[0]" 
@@ -355,6 +355,9 @@ def main(args={}):
         geneid2color[g.id]= list(geneid2color[g.id])  ## copying list or otherwise we modify in place the color
         for index, color in enumerate(color_genes_of_interest):
           if not color is None:  geneid2color[g.id][index]=color
+    #write( g.id+' '+str(geneid2color[g.id]) +'    '+ str(geneid2color), 1, how='green')
+    #write('---', 1, how='reverse')
+
   ### now sorting gene_clusters so they are in the same order as the input file
   gene_clusters.sort(key=lambda x:x.ref_gene.is_of_interest)
 
